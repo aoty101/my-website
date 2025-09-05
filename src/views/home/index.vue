@@ -3,6 +3,7 @@ import { onMounted, onUnmounted, ref } from 'vue'
 
 // Note: Requires dependencies: three, gsap
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import gsap from 'gsap'
 
 const containerRef = ref(null)
@@ -16,6 +17,8 @@ let resizeObserver
 let group
 let logoMesh
 let particles
+let gltfModel
+let loader
 
 // Parameters
 const params = {
@@ -23,10 +26,11 @@ const params = {
   gradientTop: new THREE.Color('#0c0f14'),
   gradientBottom: new THREE.Color('#18212b'),
   parallaxIntensity: 0.6,
-  explosionRadius: 2.5,
-  particleCount: 600,
+  particleCount: 800,
   initialCameraZ: 8,
   targetCameraZ: 3.2,
+  convergenceRadius: 3.0,
+  modelScale: 1.0,
 }
 
 function createGradientBackground(width, height) {
@@ -42,31 +46,41 @@ function createGradientBackground(width, height) {
   return new THREE.CanvasTexture(canvas)
 }
 
-function createLogo() {
-  // Minimalistic logo: two intersecting torus rings forming an abstract monogram
-  const ringMaterial = new THREE.MeshStandardMaterial({
-    color: 0x9ad1ff,
-    metalness: 0.6,
-    roughness: 0.25,
-  })
-  const torusGeoA = new THREE.TorusGeometry(0.9, 0.06, 32, 128)
-  const torusGeoB = new THREE.TorusGeometry(0.9, 0.06, 32, 128)
-  const ringA = new THREE.Mesh(torusGeoA, ringMaterial)
-  const ringB = new THREE.Mesh(torusGeoB, ringMaterial)
-  ringB.rotation.x = Math.PI / 2
+async function loadGLTFModel() {
+  return new Promise((resolve, reject) => {
+    if (!loader) {
+      loader = new GLTFLoader()
+    }
 
-  const dotGeo = new THREE.SphereGeometry(0.09, 32, 32)
-  const dotMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    emissive: 0x3a9cff,
-    emissiveIntensity: 0.4,
-  })
-  const dot = new THREE.Mesh(dotGeo, dotMat)
-  dot.position.set(0.15, 0.15, 0.15)
+    loader.load(
+      '/models/狼毒.glb',
+      (gltf) => {
+        const model = gltf.scene
+        model.scale.setScalar(params.modelScale)
+        model.position.set(0, 0, 0)
 
-  const logo = new THREE.Group()
-  logo.add(ringA, ringB, dot)
-  return logo
+        // 优化模型材质
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true
+            child.receiveShadow = true
+            if (child.material) {
+              child.material.metalness = 0.6
+              child.material.roughness = 0.25
+              child.material.color.setHex(0x9ad1ff)
+            }
+          }
+        })
+
+        resolve(model)
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading GLTF model:', error)
+        reject(error)
+      }
+    )
+  })
 }
 
 function createParticles() {
@@ -75,11 +89,17 @@ function createParticles() {
   const colors = new Float32Array(params.particleCount * 3)
   const color = new THREE.Color()
 
+  // 粒子从随机位置开始，准备汇聚到中心
   for (let i = 0; i < params.particleCount; i += 1) {
     const i3 = i * 3
-    positions[i3 + 0] = (Math.random() - 0.5) * 0.001 // start near origin
-    positions[i3 + 1] = (Math.random() - 0.5) * 0.001
-    positions[i3 + 2] = (Math.random() - 0.5) * 0.001
+    // 在更大的范围内随机分布粒子
+    const theta = Math.random() * Math.PI * 2
+    const phi = Math.acos(2 * Math.random() - 1)
+    const r = params.convergenceRadius * (0.8 + Math.random() * 0.4)
+
+    positions[i3 + 0] = r * Math.sin(phi) * Math.cos(theta)
+    positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+    positions[i3 + 2] = r * Math.cos(phi)
 
     // soft blue to white
     color.setHSL(0.56 + Math.random() * 0.02, 0.7, 0.6 + Math.random() * 0.3)
@@ -92,7 +112,7 @@ function createParticles() {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
 
   const material = new THREE.PointsMaterial({
-    size: 0.035,
+    size: 0.04,
     vertexColors: true,
     transparent: true,
     opacity: 0.0,
@@ -103,7 +123,7 @@ function createParticles() {
   return new THREE.Points(geometry, material)
 }
 
-function init() {
+async function init() {
   const container = containerRef.value
   if (!container) return
 
@@ -112,6 +132,8 @@ function init() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(container.clientWidth, container.clientHeight)
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
   container.appendChild(renderer.domElement)
 
   // Scene
@@ -128,9 +150,12 @@ function init() {
   if (camera) scene.add(camera)
 
   // Lighting
-  const ambient = new THREE.AmbientLight(0xffffff, 0.7)
-  const dir = new THREE.DirectionalLight(0xffffff, 1.0)
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6)
+  const dir = new THREE.DirectionalLight(0xffffff, 1.2)
   dir.position.set(3, 4, 5)
+  dir.castShadow = true
+  dir.shadow.mapSize.width = 2048
+  dir.shadow.mapSize.height = 2048
   if (ambient) scene.add(ambient)
   if (dir) scene.add(dir)
 
@@ -152,27 +177,34 @@ function init() {
   group = new THREE.Group()
   if (group) scene.add(group)
 
-  logoMesh = createLogo()
-  if (logoMesh) group.add(logoMesh)
+  // 加载GLB模型
+  try {
+    gltfModel = await loadGLTFModel()
+    if (gltfModel) {
+      gltfModel.visible = false // 初始隐藏模型
+      group.add(gltfModel)
+    }
+  } catch (error) {
+    console.error('Failed to load GLTF model:', error)
+  }
 
   particles = createParticles()
   if (particles) group.add(particles)
 
-  // Intro timeline (explosion + logo reveal)
+  // 粒子汇聚动画时间线
   const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
 
-  // Start elements collapsed in center, then "explode" outward
+  // 粒子从随机位置汇聚到中心
   const positions = particles.geometry.getAttribute('position')
   const fromPositions = positions.array.slice(0)
   const toPositions = positions.array.slice(0)
+
+  // 设置目标位置为原点（模型位置）
   for (let i = 0; i < params.particleCount; i += 1) {
     const i3 = i * 3
-    const theta = Math.random() * Math.PI * 2
-    const phi = Math.acos(2 * Math.random() - 1)
-    const r = params.explosionRadius * (0.4 + Math.random() * 0.6)
-    toPositions[i3 + 0] = r * Math.sin(phi) * Math.cos(theta)
-    toPositions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta)
-    toPositions[i3 + 2] = r * Math.cos(phi)
+    toPositions[i3 + 0] = 0
+    toPositions[i3 + 1] = 0
+    toPositions[i3 + 2] = 0
   }
 
   const tweenState = { t: 0 }
@@ -181,7 +213,7 @@ function init() {
     { t: 0 },
     {
       t: 1,
-      duration: 1.4,
+      duration: 2.0,
       onUpdate() {
         const t = tweenState.t
         for (let i = 0; i < fromPositions.length; i += 1) {
@@ -192,19 +224,32 @@ function init() {
       },
     }
   )
-  tl.to(particles.material, { opacity: 1, duration: 0.6 }, 0.2)
-  tl.fromTo(
-    logoMesh.scale,
-    { x: 0.2, y: 0.2, z: 0.2 },
-    { x: 1, y: 1, z: 1, duration: 1.2 },
-    0.0
-  )
-  tl.fromTo(
-    logoMesh.rotation,
-    { x: -0.5, y: 0.6, z: 0 },
-    { x: 0, y: 0, z: 0, duration: 1.2 },
-    0.0
-  )
+
+  // 粒子透明度动画
+  tl.to(particles.material, { opacity: 1, duration: 0.8 }, 0.2)
+  tl.to(particles.material, { opacity: 0, duration: 0.6 }, 1.4)
+
+  // 模型出现动画
+  if (gltfModel) {
+    tl.fromTo(
+      gltfModel.scale,
+      { x: 0.1, y: 0.1, z: 0.1 },
+      {
+        x: params.modelScale,
+        y: params.modelScale,
+        z: params.modelScale,
+        duration: 1.0,
+      },
+      1.6
+    )
+    tl.fromTo(
+      gltfModel.rotation,
+      { x: -0.3, y: 0.5, z: 0 },
+      { x: 0, y: 0, z: 0, duration: 1.0 },
+      1.6
+    )
+    tl.to(gltfModel, { visible: true, duration: 0.1 }, 1.6)
+  }
 
   // Parallax
   const parallaxTarget = { x: 0, y: 0 }
@@ -250,13 +295,21 @@ function init() {
   const clock = new THREE.Clock()
   function animate() {
     const elapsed = clock.getElapsedTime()
-    // Subtle movement
-    logoMesh.rotation.y += 0.003
+
+    // 模型持续旋转
+    if (gltfModel && gltfModel.visible) {
+      gltfModel.rotation.y += 0.005
+    }
+
+    // 视差效果
     group.position.x += (parallaxTarget.x - group.position.x) * 0.04
     group.position.y += (-parallaxTarget.y - group.position.y) * 0.04
 
-    // shimmer
-    particles.rotation.y = Math.sin(elapsed * 0.2) * 0.1
+    // 粒子微动效果
+    if (particles) {
+      particles.rotation.y = Math.sin(elapsed * 0.2) * 0.1
+    }
+
     renderer.render(scene, camera)
     animationId = requestAnimationFrame(animate)
   }
@@ -275,12 +328,21 @@ function init() {
     bgMaterial.dispose()
     particles?.geometry?.dispose?.()
     particles?.material?.dispose?.()
-    logoMesh && logoMesh.traverse((child) => {
-      if (child.isMesh) {
-        child.geometry.dispose()
-        child.material.dispose?.()
-      }
-    })
+
+    // 清理GLB模型
+    if (gltfModel) {
+      gltfModel.traverse((child) => {
+        if (child.isMesh) {
+          child.geometry.dispose()
+          if (Array.isArray(child.material)) {
+            child.material.forEach((material) => material.dispose?.())
+          } else {
+            child.material.dispose?.()
+          }
+        }
+      })
+    }
+
     scene.clear()
     container.removeChild(renderer.domElement)
   }
