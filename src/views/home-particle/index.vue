@@ -10,6 +10,9 @@
       <div class="content-section">
         <h1 class="text-4xl font-bold text-white mb-4">欢迎来到</h1>
         <p class="text-white/80 mb-8">这是一个使用Three.js创建的粒子效果背景</p>
+
+        <!-- 3D模型展示区域 -->
+        <ComputerDesk />
       </div>
 
       <div class="content-section">
@@ -77,11 +80,14 @@
   </div>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import Application from '@/three/Application.js'
+import ComputerDesk from './components/computer-desk.vue'
+
 let application = null
 
 onMounted(() => {
+  // 初始化背景场景
   application = new Application()
 })
 </script>
