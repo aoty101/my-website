@@ -1,9 +1,11 @@
 <script setup>
 import Home from './views/home/index.vue'
+import HomeParticle from './views/home-particle/index.vue'
 </script>
 
 <template>
-  <Home />
+  <!-- <Home /> -->
+  <HomeParticle />
 </template>
 
 <style scoped></style>
