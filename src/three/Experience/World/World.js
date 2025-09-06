@@ -1,23 +1,21 @@
-import Experience from './Experience.js'
-import Gradient from './Gradient.js'
-import Smoke from './Smoke.js'
-import Particles from './Particles.js'
-import Vignette from './Vignette.js'
+import Experience from '../Experience.js'
+import Gradient from '../Gradient.js'
+import Smoke from '../Smoke.js'
+import Particles from '../Particles.js'
+import Vignette from '../Vignette.js'
 
 export default class World {
-  constructor(_options) {
+  constructor() {
     this.experience = new Experience()
     this.config = this.experience.config
     this.scene = this.experience.scene
     this.resources = this.experience.resources
 
-    this.resources.on('groupEnd', (_group) => {
-      if (_group.name === 'base') {
-        this.setGradient()
-        this.setSmoke()
-        this.setVignette()
-        this.setParticles()
-      }
+    this.resources.on('ready', () => {
+      this.setParticles()
+      this.setGradient()
+      this.setSmoke()
+      this.setVignette()
     })
   }
 
@@ -48,6 +46,4 @@ export default class World {
 
     if (this.particles) this.particles.update()
   }
-
-  destroy() {}
 }

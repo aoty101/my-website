@@ -2,16 +2,16 @@
   <div class="page-container">
     <!-- 固定的Three.js背景 -->
     <div class="fixed-background">
-      <div class="experience"></div>
+      <canvas class="experience"></canvas>
     </div>
-    
+
     <!-- 可滚动的内容区域 -->
     <div class="scrollable-content">
       <div class="content-section">
-        <h1 class="text-4xl font-bold text-white mb-4">欢迎来到我的网站</h1>
+        <h1 class="text-4xl font-bold text-white mb-4">欢迎来到</h1>
         <p class="text-white/80 mb-8">这是一个使用Three.js创建的粒子效果背景</p>
       </div>
-      
+
       <div class="content-section">
         <h2 class="text-3xl font-bold text-white mb-4">项目特色</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -29,27 +29,37 @@
           </div>
         </div>
       </div>
-      
+
       <div class="content-section">
         <h2 class="text-3xl font-bold text-white mb-4">技术栈</h2>
         <div class="flex flex-wrap gap-4">
-          <span class="bg-blue-500/20 text-blue-300 px-4 py-2 rounded-full">Vue 3</span>
-          <span class="bg-green-500/20 text-green-300 px-4 py-2 rounded-full">Three.js</span>
-          <span class="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-full">Vite</span>
-          <span class="bg-yellow-500/20 text-yellow-300 px-4 py-2 rounded-full">GSAP</span>
-          <span class="bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-full">UnoCSS</span>
+          <span class="bg-blue-500/20 text-blue-300 px-4 py-2 rounded-full"
+            >Vue 3</span
+          >
+          <span class="bg-green-500/20 text-green-300 px-4 py-2 rounded-full"
+            >Three.js</span
+          >
+          <span class="bg-purple-500/20 text-purple-300 px-4 py-2 rounded-full"
+            >Vite</span
+          >
+          <span class="bg-yellow-500/20 text-yellow-300 px-4 py-2 rounded-full"
+            >GSAP</span
+          >
+          <span class="bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-full"
+            >UnoCSS</span
+          >
         </div>
       </div>
-      
+
       <div class="content-section">
         <h2 class="text-3xl font-bold text-white mb-4">关于我</h2>
         <p class="text-white/80 text-lg leading-relaxed">
           我是一名前端开发工程师，专注于现代Web技术的应用和创新。
-          这个项目展示了如何将Three.js与Vue 3结合，创造出令人印象深刻的视觉效果。
+          这个项目展示了如何将Three.js与Vue
+          3结合，创造出令人印象深刻的视觉效果。
         </p>
       </div>
-      
-      <!-- 添加更多内容来测试滚动效果 -->
+
       <div class="content-section">
         <h2 class="text-3xl font-bold text-white mb-4">更多内容</h2>
         <div class="space-y-4">
@@ -135,11 +145,11 @@ onMounted(() => {
   .content-section {
     padding: 60px 15px;
   }
-  
+
   .content-section h1 {
     font-size: 2rem;
   }
-  
+
   .content-section h2 {
     font-size: 1.75rem;
   }

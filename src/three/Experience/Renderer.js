@@ -9,10 +9,7 @@ import finalFragmentShader from './shaders/final/fragment.glsl?raw'
 export default class Renderer {
   constructor(_options = {}) {
     this.experience = new Experience()
-    this.config = this.experience.config
-    this.debug = this.experience.debug
-    this.stats = this.experience.stats
-    this.time = this.experience.time
+    this.canvas = this.experience.canvas
     this.sizes = this.experience.sizes
     this.scene = this.experience.scene
     this.camera = this.experience.camera
@@ -24,39 +21,21 @@ export default class Renderer {
   }
 
   setInstance() {
-    this.clearColor = '#010101'
-
     // Renderer
     this.instance = new THREE.WebGLRenderer({
+      canvas: this.canvas,
       alpha: false,
       antialias: true,
     })
-    this.instance.domElement.style.position = 'absolute'
-    this.instance.domElement.style.top = 0
-    this.instance.domElement.style.left = 0
-    this.instance.domElement.style.width = '100%'
-    this.instance.domElement.style.height = '100%'
-
-    // this.instance.setClearColor(0x414141, 1)
-    this.instance.setClearColor(this.clearColor, 1)
-    this.instance.setSize(this.config.width, this.config.height)
-    this.instance.setPixelRatio(this.config.pixelRatio)
-
-    // this.instance.physicallyCorrectLights = true
-    // this.instance.gammaOutPut = true
-    // this.instance.outputEncoding = THREE.sRGBEncoding
-    // this.instance.shadowMap.type = THREE.PCFSoftShadowMap
-    // this.instance.shadowMap.enabled = false
-    // this.instance.toneMapping = THREE.ReinhardToneMapping
-    // this.instance.toneMapping = THREE.ReinhardToneMapping
-    // this.instance.toneMappingExposure = 1.3
-
-    this.context = this.instance.getContext()
-
-    // Add stats panel
-    if (this.stats) {
-      this.stats.setRenderPanel(this.context)
-    }
+    this.instance.physicallyCorrectLights = true
+    this.instance.outputEncoding = THREE.sRGBEncoding
+    this.instance.toneMapping = THREE.CineonToneMapping
+    this.instance.toneMappingExposure = 1.75
+    this.instance.shadowMap.enabled = true
+    this.instance.shadowMap.type = THREE.PCFSoftShadowMap
+    this.instance.setClearColor('#010101')
+    this.instance.setSize(this.sizes.width, this.sizes.height)
+    this.instance.setPixelRatio(Math.min(this.sizes.pixelRatio, 2))
   }
 
   setPostProcess() {
@@ -81,16 +60,14 @@ export default class Renderer {
      * Effect composer
      */
     // const RenderTargetClass =
-    //   this.config.pixelRatio >= 2
+    //   Math.min(this.sizes.pixelRatio, 2) >= 2
     //     ? THREE.WebGLRenderTarget
     //     : THREE.WebGLMultisampleRenderTarget
 
-    console.log(THREE.WebGLMultisampleRenderTarget)
-
     const RenderTargetClass = THREE.WebGLRenderTarget
     this.renderTarget = new RenderTargetClass(
-      this.config.width,
-      this.config.height,
+      this.sizes.width,
+      this.sizes.height,
       {
         generateMipmaps: false,
         minFilter: THREE.LinearFilter,
@@ -103,36 +80,23 @@ export default class Renderer {
       this.instance,
       this.renderTarget
     )
-    this.postProcess.composer.setSize(this.config.width, this.config.height)
-    this.postProcess.composer.setPixelRatio(this.config.pixelRatio)
+    this.postProcess.composer.setSize(this.sizes.width, this.sizes.height)
+    this.postProcess.composer.setPixelRatio(Math.min(this.sizes.pixelRatio, 2))
 
     this.postProcess.composer.addPass(this.postProcess.renderPass)
     this.postProcess.composer.addPass(this.postProcess.finalPass)
   }
 
   resize() {
-    // Instance
-    this.instance.setSize(this.config.width, this.config.height)
-    this.instance.setPixelRatio(this.config.pixelRatio)
-
-    // Post process
-    this.postProcess.composer.setSize(this.config.width, this.config.height)
-    this.postProcess.composer.setPixelRatio(this.config.pixelRatio)
+    this.instance.setSize(this.sizes.width, this.sizes.height)
+    this.instance.setPixelRatio(Math.min(this.sizes.pixelRatio, 2))
   }
 
   update() {
-    if (this.stats) {
-      this.stats.beforeRender()
-    }
-
     if (this.usePostprocess) {
       this.postProcess.composer.render()
     } else {
       this.instance.render(this.scene, this.camera.instance)
-    }
-
-    if (this.stats) {
-      this.stats.afterRender()
     }
   }
 
